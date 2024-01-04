@@ -43,4 +43,4 @@ For more detailed information, see the following guides:
 
 ## Acknowledgments
 
-This project builds upon [Frappe Docker]([link-to-frappe-docker-repo](https://github.com/frappe/frappe_docker/tree/main)) by Frappe Technologies Pvt. Ltd., which is licensed under the MIT License. Special thanks to the contributors of Frappe Docker for their valuable work.
+This project builds upon [Frappe Docker](https://github.com/frappe/frappe_docker/tree/main) by Frappe Technologies Pvt. Ltd., which is licensed under the MIT License. Special thanks to the contributors of Frappe Docker for their valuable work.
