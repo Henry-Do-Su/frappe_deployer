@@ -20,9 +20,10 @@ This docker compose file is for deploying a production environment for a single 
 3. Edit the .env file to include your domain name, email address and other variables. View the .env.example file for more information.
 4. You need to manually include the apps you want to install in your production environment. You will see it on line 90 of the production.yml file.
 These will be the apps that you included in apps.json if you built a custom image.
+5. Remember to update all the images refrences: `image: frappe/erpnext:v15.9.1` to your custom image if required.
 
 ![img_2.png](img_2.png)
 
-5. Run `docker-compose -p production -f production.yml up -d` and wait 10-20 minutes for the configuration and instalation to finish.
-6. Access your site on https://YOUR-SITE.com
+6. Run `docker-compose -p production -f production.yml up -d` and wait 10-20 minutes for the configuration and instalation to finish.
+7. Access your site on https://YOUR-SITE.com
 
