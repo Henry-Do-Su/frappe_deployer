@@ -1,0 +1,29 @@
+// JetBrains BETA for Devcontainers, not ready yet. Still lacking customisation options on plugins.
+{
+    "name": "Frappe Bench - JetBrains",
+    "forwardPorts": [8000, 9000, 6787],
+    "portsAttributes": {
+        "8000": {"label": "Frappe App"},
+        "9000": {"label": "SocketIO"}
+    },
+    "remoteUser": "frappe",
+    "shutdownAction": "stopCompose",
+    "privileged": false,
+    "mounts": [
+        {
+            "source": "${localWorkspaceFolder}/data",
+            "target": "/data",
+            "type": "bind"
+        }
+    ],
+    //"features": {
+    //    "ghcr.io/devcontainers/features/python:1": {},
+    //    "ghcr.io/devcontainers-contrib/features/live-server:1": {},
+
+    //},
+    "dockerComposeFile": "./docker-compose.yml",
+    "service": "frappe",
+    "workspaceFolder": "/workspace/development",
+    "postCreateCommand": "echo 'Container is now ready!'"
+
+}

@@ -1,0 +1,4 @@
+.venv
+.idea
+data
+./development/frappe-bench

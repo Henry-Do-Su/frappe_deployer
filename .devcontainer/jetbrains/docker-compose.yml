@@ -1,0 +1,35 @@
+version: "3.7"
+services:
+  mariadb:
+    image: docker.io/mariadb:10.6
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --skip-innodb-read-only-compressed
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456789
+    volumes:
+      - mariadb-data:/var/lib/mysql
+
+  redis-cache:
+    image: docker.io/redis:alpine
+
+  redis-queue:
+    image: docker.io/redis:alpine
+
+  frappe:
+    image: docker.io/frappe/bench:latest
+    command: sleep infinity
+    environment:
+      - SHELL=/bin/bash
+    volumes:
+      - ..:/workspace:cached
+
+    working_dir: /workspace/development
+    ports:
+      - 8000-8005:8000-8005
+      - 9000-9005:9000-9005
+
+volumes:
+  mariadb-data:
