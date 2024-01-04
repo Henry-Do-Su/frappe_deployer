@@ -40,3 +40,7 @@ For more detailed information, see the following guides:
 - [Setting Up Development Environment](./documentation/development.md)
 - [Building a custom Image](./documentation/image_build.md)
 - [Setting Up Production Environment](./documentation/production.md)
+
+## Acknowledgments
+
+This project builds upon [Frappe Docker]([link-to-frappe-docker-repo](https://github.com/frappe/frappe_docker/tree/main)) by Frappe Technologies Pvt. Ltd., which is licensed under the MIT License. Special thanks to the contributors of Frappe Docker for their valuable work.
