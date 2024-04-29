@@ -2,7 +2,7 @@
 
 1. **Frappe-Focused Development Environment:** Designed specifically for Frappe development, this repository offers a pre-configured environment to work on Frappe and its custom applications. Ideal for developers aiming to build, test, and refine Frappe-based projects on their local machines.
 
-2. **Production-Ready with SSL Encryption:** Includes configurations for deploying Frappe applications in a production environment, complete with SSL encryption for secure HTTP communication.
+2. **Production-Ready with SSL Encryption:** Includes configurations for deploying Frappe applications in a production environment, complete with SSL encryption for secure HTTPS communication.
 
 3. **IDE Compatibility:** Supports `devcontainer` configurations for both Visual Studio Code and JetBrains, allowing Frappe developers to work in their preferred coding environment.
 
