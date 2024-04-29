@@ -33,7 +33,7 @@ Make sure to replace the tag value with your own tag value. For example: `--tag=
     --build-arg=PYTHON_VERSION=3.11.4 \
     --build-arg=NODE_VERSION=18.17.1 \
     --build-arg=APPS_JSON_BASE64=$APPS_JSON_BASE64 \
-    --tag=ghcr.io/Henry-Do-Su/frappedemo:1.0.0 \
+    --tag=ghcr.io/henry-do-su/frappedemo:1.0.0 \
     --file=Containerfile .
 ```
 8. Wait for the image to build. Once complete, you can push the image to your repository. 
