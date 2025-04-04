@@ -1,27 +1,47 @@
-// This DevContainer is for VSCODE only, BETA version on JetBrain Products does not fully work!!!!!
-
+// This DevContainer is intended for VS Code & JetBrains IDEs
 {
-  "name": "Frappe Bench",
-  "forwardPorts": [8000, 9000, 6787],
-  "remoteUser": "frappe",
-  "settings": {
-    "terminal.integrated.profiles.linux": {
-      "frappe bash": {
-        "path": "/bin/bash"
-      }
-    },
-    "terminal.integrated.defaultProfile.linux": "frappe bash",
-    "debug.node.autoAttach": "disabled"
-  },
-  "dockerComposeFile": "./docker-compose.yml",
+  "name": "Frappe Bench Dev",
+  "dockerComposeFile": "docker-compose.yml",
   "service": "frappe",
-  "workspaceFolder": "/workspace/development",
-  "shutdownAction": "stopCompose",
-  "extensions": [
-    "ms-python.python",
-    "ms-vscode.live-server",
-    "grapecity.gc-excelviewer",
-    "mtxr.sqltools",
-    "visualstudioexptteam.vscodeintellicode"
-  ]
+  "workspaceFolder": "/workspace",
+  "postCreateCommand": "cd development && python ./installer.py --apps-json apps.json --site-name development.localhost --admin-password admin", // Add any other default flags you need
+  "postAttachCommand": {
+     "server": "cd development && bench start"
+  },
+  "forwardPorts": [
+    8000,
+    9000,
+    1000,
+    6787
+  ],
+  "remoteUser": "frappe",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.profiles.linux": {
+          "frappe bash": {
+            "path": "/bin/bash",
+            "icon": "terminal-bash"
+          }
+        },
+        "terminal.integrated.defaultProfile.linux": "frappe bash",
+        "debug.node.autoAttach": "disabled",
+        "python.defaultInterpreterPath": "/home/frappe/.pyenv/versions/3.11/bin/python"
+      },
+      "extensions": [
+        "ms-python.python",
+        "visualstudioexptteam.vscodeintellicode",
+        "batisteo.vscode-django",
+        "ms-azuretools.vscode-docker"
+
+      ]
+    },
+    "jetbrains": {
+       // JetBrains IDEs generally pick up Python interpreters well.
+       // Specific settings might be needed depending on the IDE version and features.
+       // Ensure the Python interpreter within the container is configured in PyCharm's settings.
+    }
+  },
+  "overrideCommand": false,
+  "shutdownAction": "stopCompose"
 }

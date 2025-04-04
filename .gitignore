@@ -1,4 +1,6 @@
 .venv
 .idea
 data
+frappe-bench
+./frappe-bench
 ./development/frappe-bench

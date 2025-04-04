@@ -26,12 +26,11 @@ For example: `"url": "https://github.com/MYACCOUNT/MYAPP.git"",` becomes `"url":
 **Note:** The next step will install Frappe v15, Python Version 3.11.6, Node v18.18.2 and the apps listed in apps.json.
 
 You can run `python -V` to check the python version and `node -v` to check the node version, use these in your ./installer flags.
-
-6. Run `./installer.py -t version-15 -p 3.11.6 -n v18.18.2 -j apps.json -v`
+6. Run `./installer.py` or `./installer.py -t version-15 -p 3.11.6 -n v18.18.2 -j apps.json -v`
 
 **Note** If you want to change any default parameters for the installation, edit the installer.py file and change the default parser values.
 
-7. Once the installation is complete, you can run `bench start` to start the development server. You can access the site at `development.localhost:8000`
+7. Once the installation is complete, you can run `bench start` to start the development server. You can access the site at `localhost:8000`
 
 ### Jet Brains Setup
 
@@ -65,13 +64,13 @@ For example: `"url": "https://github.com/MYACCOUNT/MYAPP.git"",` becomes `"url":
 You can run `python -V` to check the python version and `node -v` to check the node version, use these in your ./installer flags.
 
 
-6. Run `./installer.py -t version-15 -p 3.11.6 -n v18.18.2 -j apps.json -v`
+6. Run `./installer.py` or `./installer.py -t version-15 -p 3.11.6 -n v18.18.2 -j apps.json -v`
 
 
 **Note** If you want to change any default parameters for the installation, edit the installer.py file and change the default parser values.
 
 
-7. Once the installation is complete, you can run `bench start` to start the development server. You can access the site at `development.localhost:8000`
+7. Once the installation is complete, you can run `bench start` to start the development server. You can access the site at `localhost:8000`
 
 ## Default Parameters
 Site Name: `development.localhost`
@@ -84,6 +83,6 @@ Default Admin Password: `admin`
 
 Default Database Type: `mariadb`
 
-Default Database Password: `123`
+Default Database Password: `superpassword`
 
 

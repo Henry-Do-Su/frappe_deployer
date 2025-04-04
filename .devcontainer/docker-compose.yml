@@ -1,3 +1,4 @@
+# .devcontainer/docker-compose.yml
 version: "3.7"
 services:
   mariadb:
@@ -8,29 +9,61 @@ services:
       - --skip-character-set-client-handshake
       - --skip-innodb-read-only-compressed
     environment:
-      MYSQL_ROOT_PASSWORD: 123456789
+      MYSQL_ROOT_PASSWORD: superpassword # Match the password used in installer.py/bench new-site
     volumes:
       - mariadb-data:/var/lib/mysql
+    networks:
+      - frappe-network # Define a network
 
   redis-cache:
-    image: docker.io/redis:alpine
+    image: docker.io/redis:7-alpine # Use a specific version
+    networks:
+      - frappe-network
 
   redis-queue:
-    image: docker.io/redis:alpine
+    image: docker.io/redis:7-alpine
+    networks:
+      - frappe-network
 
   frappe:
+    # Consider pinning to a specific version tag if 'latest' causes issues
+    # e.g., frappe/bench:py3.11-node18-debian or similar if available
     image: docker.io/frappe/bench:latest
+    user: frappe # Ensure commands run as frappe user
+    # Keep container alive for dev purposes
     command: sleep infinity
     environment:
       - SHELL=/bin/bash
+      # Pass DB/Redis info (though bench config should handle this now)
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - REDIS_CACHE=redis://redis-cache:6379
+      - REDIS_QUEUE=redis://redis-queue:6379
+      - PYTHONUNBUFFERED=1 # Good for seeing logs immediately
     volumes:
-      - ..:/workspace:cached
-      # Enable if you require git cloning
-      # - ${HOME}/.ssh:/home/frappe/.ssh
-    working_dir: /workspace/development
+      # Mount the entire repository root to /workspace
+      - ..:/workspace:cached # 'cached' is generally good for dev performance
+      # Optional: Mount SSH keys if needed for private git repos within the container
+      # - ${HOME}/.ssh:/home/frappe/.ssh:ro
+    working_dir: /workspace/development # Default working dir when attaching terminal
     ports:
-      - 8000-8005:8000-8005
-      - 9000-9005:9000-9005
+      # Map ports defined in devcontainer.json forwardPorts
+      - "8000:8000"
+      - "10000:9000"
+      # Add other ports if needed (e.g., debug ports)
+      # - "5678:5678" # Python Debug Port
+    depends_on:
+      - mariadb
+      - redis-cache
+      - redis-queue
+    networks:
+      - frappe-network
+    # Optional: Add tty and stdin_open if you need interactive sessions more reliably
+    # tty: true
+    # stdin_open: true
 
 volumes:
   mariadb-data:
+
+networks:
+  frappe-network: # Define the network

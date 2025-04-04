@@ -2,285 +2,206 @@
 import argparse
 import os
 import subprocess
-
+import json
+import sys
 
 RED_COLOR = "\033[31m"
 GREEN_COLOR = "\33[92m"
 YELLOW_COLOR = "\33[93m"
 COLOR_RESET = "\033[0m"
 
-
 def cprint(*args, level: int = 1):
-    """
-    Prints the given arguments with color formatting based on the specified level.
-
-    :param args: Variable number of arguments to be printed.
-    :param level: Integer representing the color level. Defaults to 1.
-    :return: None
-    """
     message = " ".join(map(str, args))
-    if level == 1:
-        print(RED_COLOR, message, COLOR_RESET)
-    if level == 2:
-        print(GREEN_COLOR, message, COLOR_RESET)
-    if level == 3:
-        print(YELLOW_COLOR, message, COLOR_RESET)
+    color = COLOR_RESET
+    if level == 1: color = RED_COLOR
+    elif level == 2: color = GREEN_COLOR
+    elif level == 3: color = YELLOW_COLOR
+    print(color, message, COLOR_RESET, file=sys.stderr if level == 1 else sys.stdout)
 
+def run_command(command, cwd=None, env=None, check=True):
+    print(f"{YELLOW_COLOR}Running: {' '.join(command)}{COLOR_RESET} {f'(in {cwd})' if cwd else ''}")
+    try:
+        process = subprocess.run(command, cwd=cwd, env=env, check=check, capture_output=True, text=True)
+        if process.stdout:
+            print(process.stdout)
+        if process.stderr:
+            print(process.stderr, file=sys.stderr)
+        return process
+    except subprocess.CalledProcessError as e:
+        cprint(f"Error running command: {' '.join(command)}", level=1)
+        cprint(f"Return Code: {e.returncode}", level=1)
+        if e.stdout:
+            cprint("--- STDOUT ---", level=1)
+            cprint(e.stdout, level=1)
+        if e.stderr:
+            cprint("--- STDERR ---", level=1)
+            cprint(e.stderr, level=1)
+        raise
 
 def main():
-    """
-    Main method for the application.
-
-    This method performs the following steps:
-    1. Parse command line arguments using `get_args_parser`.
-    2. Initialize the bench if it doesn't already exist, using `init_bench_if_not_exist`.
-    3. Create a site in the bench, using `create_site_in_bench`.
-
-    :return: None
-    """
     parser = get_args_parser()
     args = parser.parse_args()
-    init_bench_if_not_exist(args)
-    create_site_in_bench(args)
 
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    workspace_root = os.path.dirname(script_dir)
+    bench_path = os.path.join(workspace_root, args.bench_name)
+
+    env = os.environ.copy()
+
+    init_bench_if_not_exist(args, bench_path, env)
+    create_site_if_not_exist(args, bench_path, env)
+    install_apps(args, bench_path, env)
+    configure_bench(args, bench_path, env)
 
 def get_args_parser():
-    """
-    :return: An ArgumentParser object with the following command line arguments:
-        - "-j", "--apps-json": Path to apps.json, default: "apps-example.json"
-        - "-b", "--bench-name": Bench directory name, default: "frappe-bench"
-        - "-s", "--site-name": Site name, should end with .localhost, default: "development.localhost"
-        - "-r", "--frappe-repo": Frappe repo to use, default: "https://github.com/frappe/frappe"
-        - "-t", "--frappe-branch": Frappe repo branch to use, default: "version-15"
-        - "-p", "--py-version": Python version, default: "Not Set"
-        - "-n", "--node-version": Node version, default: "Not Set"
-        - "-v", "--verbose": Enable verbose output
-        - "-a", "--admin-password": Admin password for site, default: "admin"
-        - "-d", "--db-type": Database type to use (e.g., mariadb or postgres), default: "mariadb"
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-j",
-        "--apps-json",
-        action="store",
-        type=str,
-        help="Path to apps.json, default: apps.json",
-        default="apps.json",
-    )  # noqa: E501
-    parser.add_argument(
-        "-b",
-        "--bench-name",
-        action="store",
-        type=str,
-        help="Bench directory name, default: frappe-bench",
-        default="frappe-bench",
-    )  # noqa: E501
-    parser.add_argument(
-        "-s",
-        "--site-name",
-        action="store",
-        type=str,
-        help="Site name, should end with .localhost, default: development.localhost",
-        default="development.localhost",
-    )
-    parser.add_argument(
-        "-r",
-        "--frappe-repo",
-        action="store",
-        type=str,
-        help="frappe repo to use, default: https://github.com/frappe/frappe",
-        default="https://github.com/frappe/frappe",
-    )
-    parser.add_argument(
-        "-t",
-        "--frappe-branch",
-        action="store",
-        type=str,
-        help="frappe repo to use, default: version-15",
-        default="version-15",
-    )
-    parser.add_argument(
-        "-p",
-        "--py-version",
-        action="store",
-        type=str,
-        help="python version, default: Not Set",
-        default=3.11,
-    )
-    parser.add_argument(
-        "-n",
-        "--node-version",
-        action="store",
-        type=str,
-        help="node version, default: Not Set",
-        default=18.18,
-    )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="verbose output",
-    )
-    parser.add_argument(
-        "-a",
-        "--admin-password",
-        action="store",
-        type=str,
-        help="admin password for site, default: admin",
-        default="admin",
-    )
-    parser.add_argument(
-        "-d",
-        "--db-type",
-        action="store",
-        type=str,
-        help="Database type to use (e.g., mariadb or postgres)",
-        default="mariadb",
-    )
+    parser = argparse.ArgumentParser(description="Frappe Bench Setup Script for Dev Containers")
+    parser.add_argument("-j", "--apps-json", type=str, default="apps.json", help="Path to apps.json (relative to script dir)")
+    parser.add_argument("-b", "--bench-name", type=str, default="frappe-bench", help="Bench directory name (created in repo root)")
+    parser.add_argument("-s", "--site-name", type=str, default="development.localhost", help="Site name")
+    parser.add_argument("-r", "--frappe-repo", type=str, default="https://github.com/frappe/frappe", help="Frappe repo URL")
+    parser.add_argument("-t", "--frappe-branch", type=str, default="version-15", help="Frappe repo branch")
+    parser.add_argument("-a", "--admin-password", type=str, default="admin", help="Admin password for site")
+    parser.add_argument("-d", "--db-type", type=str, default="mariadb", choices=["mariadb", "postgres"], help="Database type")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output (bench commands already show output)")
+    parser.add_argument("--force-site-creation", action="store_true", help="Force site creation even if it exists")
     return parser
 
-def set_config(cwd, key, value):
-    """
-    Set a configuration value for a specific key.
+def set_config(bench_path, key, value):
+    run_command(["bench", "set-config", "-g", key, value], cwd=bench_path)
 
-    :param cwd: The current working directory where the command will be executed.
-    :type cwd: str
-    :param key: The configuration key to set.
-    :type key: str
-    :param value: The value to set for the configuration key.
-    :type value: str
-    :return: None
-    """
-    subprocess.call(
-        ["bench", "set-config", "-g", key, value],
-        cwd=cwd,
-    )
-
-def init_bench_if_not_exist(args):
-    """
-    :param args: Command line arguments passed to the method
-    :return: None
-
-    This method initializes a bench if it does not already exist. The method performs the following steps:
-
-    1. Checks if the bench directory already exists. If it does, the method prints a message indicating that the bench already exists and returns without performing any further actions.
-
-    2. If the bench directory does not exist, the method proceeds to initialize the bench by executing the necessary command-line commands.
-
-    3. Copies the current environment and sets the "PYENV_VERSION" environment variable if the "py_version" argument is provided.
-
-    4. Constructs the initialization command for the bench based on the provided arguments. The command includes options such as skipping redis configuration generation and verbose mode
-    *. The frappe repository path, branch, and apps path are also included in the command.
-
-    5. Executes the initialization command using the subprocess module. The command is executed in a new shell process with the necessary environment variables and current working directory
-    *.
-
-    6. Prints a message indicating that the bench is being configured.
-
-    7. Sets the "db_type" configuration option to the provided value if the "db_type" argument is provided.
-
-    8. Sets other configuration options related to redis cache, queue, and socketio if the "db_type" argument is provided.
-
-    9. Sets the "developer_mode" configuration option to "1" regardless of the "db_type" argument.
-
-    10. Handles any subprocess errors that occur during the execution of the initialization command. Prints the error output if available.
-
-    Note: The method assumes that the necessary modules such as "os", "subprocess", and "cprint" are already imported.
-
-    """
-    if os.path.exists(args.bench_name):
-        cprint("Bench already exists. Only site will be created", level=3)
+def init_bench_if_not_exist(args, bench_path, env):
+    if os.path.exists(bench_path):
+        cprint(f"Bench directory '{bench_path}' already exists. Skipping init.", level=3)
         return
-    try:
-        env = os.environ.copy()
-        if args.py_version:
-            env["PYENV_VERSION"] = args.py_version
-        init_command = ""
-        if args.node_version:
-            init_command = f"nvm use {args.node_version};"
-        if args.py_version:
-            init_command += f"PYENV_VERSION={args.py_version} "
-        init_command += "bench init "
-        init_command += "--skip-redis-config-generation "
-        init_command += "--verbose " if args.verbose else " "
-        init_command += f"--frappe-path={args.frappe_repo} "
-        init_command += f"--frappe-branch={args.frappe_branch} "
-        init_command += f"--apps_path={args.apps_json} "
-        init_command += args.bench_name
-        command = [
-            "/bin/bash",
-            "-i",
-            "-c",
-            init_command,
-        ]
-        subprocess.call(command, env=env, cwd=os.getcwd())
 
-        cprint("Configuring Bench ...", level=2)
+    cprint(f"Initializing Frappe bench in '{bench_path}'...", level=2)
+    init_command = [
+        "bench", "init",
+        "--skip-redis-config-generation",
+        f"--frappe-path={args.frappe_repo}",
+        f"--frappe-branch={args.frappe_branch}",
+        bench_path
+    ]
 
-        cwd = os.getcwd() + "/" + args.bench_name
+    run_command(init_command, cwd=os.path.dirname(bench_path), env=env)
+    cprint("Bench initialized.", level=2)
 
-        if args.db_type:
-            cprint(f"Setting db_type to {args.db_type}", level=3)
-            set_config(cwd, "db_type", args.db_type)
-            cprint("Set redis_cache to redis://redis-cache:6379", level=3)
-            set_config(cwd, "redis_cache", "redis://redis-cache:6379")
-            cprint("Set redis_queue to redis://redis-queue:6379", level=3)
-            set_config(cwd, "redis_queue", "redis://redis-queue:6379")
-            cprint("Set redis_socketio to redis://redis-queue:6379 for backward compatibility", level=3)
-            set_config(cwd, "redis_socketio", "redis://redis-queue:6379")
-            cprint("Set developer_mode", level=3)
-            set_config(cwd, "developer_mode", "1")
-    except subprocess.CalledProcessError as e:
-        cprint(e.output, level=1)
+def configure_bench(args, bench_path, env):
+    cprint("Configuring Bench...", level=2)
+    set_config(bench_path, "developer_mode", "1")
+    cprint("Set developer_mode=1", level=3)
 
-
-def create_site_in_bench(args):
-    """
-    Create a new site in the bench.
-
-    :param args: An object containing the arguments needed for site creation.
-    :return: None.
-    """
-    if "mariadb" == args.db_type:
-        cprint("Set db_host", level=3)
-        subprocess.call(
-            ["bench", "set-config", "-g", "db_host", "mariadb"],
-            cwd=os.getcwd() + "/" + args.bench_name,
-        )
-        new_site_cmd = [
-            "bench",
-            "new-site",
-            f"--db-host=mariadb",
-            f"--db-type={args.db_type}",
-            f"--no-mariadb-socket",
-            f"--db-root-password=123",
-            f"--admin-password={args.admin_password}",
-        ]
+    if args.db_type == "mariadb":
+        db_host = "mariadb"
+    elif args.db_type == "postgres":
+        db_host = "postgresql"
     else:
-        cprint("Set db_host", level=3)
-        subprocess.call(
-            ["bench", "set-config", "-g", "db_host", "postgresql"],
-            cwd=os.getcwd() + "/" + args.bench_name,
-        )
-        new_site_cmd = [
-            "bench",
-            "new-site",
-            f"--db-host=postgresql",
-            f"--db-type={args.db_type}",
-            f"--db-root-password=123",
-            f"--admin-password={args.admin_password}",
-        ]
-    apps = os.listdir(f"{os.getcwd()}/{args.bench_name}/apps")
-    apps.remove("frappe")
-    for app in apps:
-        new_site_cmd.append(f"--install-app={app}")
-    new_site_cmd.append(args.site_name)
-    cprint(f"Creating Site {args.site_name} ...", level=2)
-    subprocess.call(
-        new_site_cmd,
-        cwd=os.getcwd() + "/" + args.bench_name,
-    )
+        cprint(f"Unsupported db_type: {args.db_type}", level=1)
+        sys.exit(1)
+
+    set_config(bench_path, "db_host", db_host)
+    cprint(f"Set db_host to {db_host}", level=3)
+    set_config(bench_path, "redis_cache", "redis://redis-cache:6379")
+    cprint("Set redis_cache to redis://redis-cache:6379", level=3)
+    set_config(bench_path, "redis_queue", "redis://redis-queue:6379")
+    cprint("Set redis_queue to redis://redis-queue:6379", level=3)
+    set_config(bench_path, "redis_socketio", "redis://redis-queue:6379")
+    cprint("Set redis_socketio to redis://redis-queue:6379", level=3)
+
+def site_exists(bench_path, site_name):
+    """Checks if a site exists in the bench."""
+    sites_dir = os.path.join(bench_path, "sites")
+    return os.path.exists(os.path.join(sites_dir, site_name))
+
+def create_site_if_not_exist(args, bench_path, env):
+    """Creates a new site if it doesn't already exist."""
+    if site_exists(bench_path, args.site_name) and not args.force_site_creation:
+        cprint(f"Site '{args.site_name}' already exists. Skipping creation.", level=3)
+        cprint("Use --force-site-creation flag in installer.py if you want to recreate it (data will be lost!).", level=3)
+        run_command(["bench", "use", args.site_name], cwd=bench_path)
+        run_command(["bench", "set-config", "db_host", os.environ.get('DB_HOST', 'mariadb' if args.db_type == 'mariadb' else 'postgresql')], cwd=bench_path)
+        run_command(["bench", "set-config", "developer_mode", "1"], cwd=bench_path) # Ensure dev mode is on
+        return
+
+    if args.force_site_creation and site_exists(bench_path, args.site_name):
+         cprint(f"Recreating site '{args.site_name}' due to --force-site-creation flag...", level=3)
+         run_command(["bench", "drop-site", args.site_name, "--force"], cwd=bench_path)
+
+    cprint(f"Creating Site {args.site_name}...", level=2)
+    db_host = "mariadb" if args.db_type == "mariadb" else "postgresql"
+    db_root_password = "superpassword"
+
+    new_site_cmd = [
+        "bench", "new-site", args.site_name,
+        f"--db-type={args.db_type}",
+        f"--db-host={db_host}",
+        f"--db-root-password={db_root_password}",
+        f"--admin-password={args.admin_password}",
+        "--install-app", "frappe",
+        "--set-default"
+    ]
+
+
+    run_command(new_site_cmd, cwd=bench_path, env=env)
+    cprint(f"Site {args.site_name} created successfully.", level=2)
+
+
+def install_apps(args, bench_path, env):
+    """Installs apps listed in apps.json onto the site."""
+    apps_json_path = os.path.join(os.path.dirname(__file__), args.apps_json)
+    if not os.path.exists(apps_json_path):
+        cprint(f"apps.json not found at {apps_json_path}. Skipping app installation.", level=3)
+        return
+
+    cprint(f"Processing apps from {args.apps_json}...", level=2)
+    try:
+        with open(apps_json_path, 'r') as f:
+            apps_to_install = json.load(f)
+    except json.JSONDecodeError:
+        cprint(f"Error reading or parsing {apps_json_path}", level=1)
+        return
+    except FileNotFoundError:
+        cprint(f"Could not find {apps_json_path}", level=1)
+        return
+
+    if not apps_to_install:
+         cprint("No apps listed in apps.json to install.", level=3)
+         return
+
+    # Ensure the correct site context is set
+    run_command(["bench", "use", args.site_name], cwd=bench_path)
+
+    for app_info in apps_to_install:
+        app_name = app_info['url'].split('/')[-1].replace('.git', '')
+        app_url = app_info['url']
+        app_branch = app_info.get('branch')
+
+        cprint(f"Getting app '{app_name}' from {app_url}" + (f" (branch: {app_branch})" if app_branch else ""), level=2)
+        get_app_cmd = ["bench", "get-app", app_url]
+        if app_branch:
+            get_app_cmd.extend(["--branch", app_branch])
+
+        try:
+            run_command(get_app_cmd, cwd=bench_path, env=env)
+            cprint(f"Installing app '{app_name}' on site '{args.site_name}'...", level=2)
+            # Check if app is already installed before trying to install
+            installed_apps_process = run_command(["bench", "list-apps"], cwd=bench_path, check=False)
+            if app_name not in installed_apps_process.stdout.splitlines():
+                 run_command(["bench", "install-app", app_name], cwd=bench_path, env=env)
+                 cprint(f"App '{app_name}' installed successfully.", level=2)
+            else:
+                 cprint(f"App '{app_name}' already installed on site. Skipping install command.", level=3)
+        except subprocess.CalledProcessError:
+            cprint(f"Failed to get or install app '{app_name}'. Please check logs.", level=1)
+
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+        cprint("\nDevelopment environment setup complete!", level=2)
+        cprint(f"Run 'bench start' or 'bench watch' in '{os.path.join(os.path.dirname(__file__), '../frappe-bench')}' to start the server.", level=2) # Adjust path if bench name changes
+        cprint(f"Access the site at http://{os.environ.get('CODESPACE_NAME', 'localhost')}:{os.environ.get('FRONTEND_PORT', '8000')}", level=2) # Use env vars for dynamic URLs if in Codespaces/Gitpod
+    except Exception as e:
+        cprint(f"\nSetup failed: {e}", level=1)
+        sys.exit(1)
